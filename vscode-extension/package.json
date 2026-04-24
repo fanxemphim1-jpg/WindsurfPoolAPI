@@ -1,0 +1,116 @@
+{
+  "name": "windsurfpoolapi",
+  "displayName": "WindsurfPoolAPI",
+  "description": "Run the WindsurfPoolAPI OpenAI/Anthropic-compatible proxy directly from VS Code / Cursor. Manage accounts, switch models, and monitor usage — all from the command palette.",
+  "version": "2.0.4",
+  "publisher": "guanxiaol",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "AI"
+  ],
+  "keywords": [
+    "windsurf",
+    "anthropic",
+    "openai",
+    "claude",
+    "proxy",
+    "cursor"
+  ],
+  "main": "./extension.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/guanxiaol/WindsurfPoolAPI.git",
+    "directory": "vscode-extension"
+  },
+  "license": "MIT",
+  "icon": "resources/icon.png",
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "windsurfpoolapi.start",
+        "title": "WindsurfPoolAPI: Start Proxy",
+        "icon": "$(play)"
+      },
+      {
+        "command": "windsurfpoolapi.stop",
+        "title": "WindsurfPoolAPI: Stop Proxy",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "windsurfpoolapi.restart",
+        "title": "WindsurfPoolAPI: Restart Proxy",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "windsurfpoolapi.openDashboard",
+        "title": "WindsurfPoolAPI: Open Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "windsurfpoolapi.setupLanguageServer",
+        "title": "WindsurfPoolAPI: Setup Language Server"
+      },
+      {
+        "command": "windsurfpoolapi.showLogs",
+        "title": "WindsurfPoolAPI: Show Logs"
+      },
+      {
+        "command": "windsurfpoolapi.copyApiEndpoint",
+        "title": "WindsurfPoolAPI: Copy API Endpoint"
+      }
+    ],
+    "configuration": {
+      "title": "WindsurfPoolAPI",
+      "properties": {
+        "windsurfpoolapi.binaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the windsurfpoolapi binary. Leave empty to auto-download to the extension's global storage."
+        },
+        "windsurfpoolapi.port": {
+          "type": "number",
+          "default": 3003,
+          "description": "HTTP port the proxy listens on."
+        },
+        "windsurfpoolapi.lsBinaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Windsurf language_server_* binary. Leave empty for platform default."
+        },
+        "windsurfpoolapi.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start the proxy automatically when VS Code opens."
+        },
+        "windsurfpoolapi.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional API key required for /v1/* endpoints."
+        },
+        "windsurfpoolapi.dashboardPassword": {
+          "type": "string",
+          "default": "",
+          "description": "Optional password to protect the /dashboard UI."
+        },
+        "windsurfpoolapi.defaultModel": {
+          "type": "string",
+          "default": "claude-sonnet-4.6",
+          "description": "Default model when the client doesn't specify one."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "echo 'no build step'"
+  }
+}

@@ -8,6 +8,16 @@ data/
 logs/
 *.log
 
+# Release artifacts — large binaries, uploaded to GitHub Releases
+dist/
+*.tar.gz
+*.zip
+*.vsix
+*.exe
+
+# bun build scratch files
+.*.bun-build
+
 # Local scripts & tools
 sshpass.sh
 sshpass2.sh
