@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────
-# WindsurfPoolAPI — Linux installer (x64 / arm64)
-# Installs as a systemd service under the invoking user.
+# WindsurfPoolAPI — Trình cài đặt Linux (x64 / arm64)
+# Cài đặt như một dịch vụ systemd dưới user đang chạy script.
+# Tự động tải binary `language_server_linux_x64` từ mirror
+# chính thức của Windsurf nếu chưa có.
 # ─────────────────────────────────────────────────────
 set -e
 
 INSTALL_DIR="$HOME/.windsurfapi"
 SERVICE_NAME="windsurfpoolapi"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+LS_DIR="/opt/windsurf"
+WINDSURF_UPDATE_API="https://windsurf-stable.codeium.com/api/update/linux-x64/stable/latest"
 
 echo "╔══════════════════════════════════════════╗"
-echo "║  WindsurfPoolAPI Installer (Linux)       ║"
+echo "║  Trình cài đặt WindsurfPoolAPI (Linux)   ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
-# ── Check Node.js ───────────────────────────────
+# ── Kiểm tra Node.js ───────────────────────────
 if ! command -v node &>/dev/null; then
-  echo "❌ Node.js not found. Please install Node.js >= 20:"
+  echo "❌ Không tìm thấy Node.js. Vui lòng cài đặt Node.js >= 20:"
   echo "   Ubuntu/Debian:  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs"
   echo "   Fedora/RHEL:    sudo dnf install -y nodejs"
   echo "   Arch:           sudo pacman -S nodejs"
@@ -25,25 +29,113 @@ fi
 
 NODE_VER=$(node -e "console.log(process.versions.node.split('.')[0])")
 if [ "$NODE_VER" -lt 20 ]; then
-  echo "❌ Node.js >= 20 required (found v$(node --version))"
+  echo "❌ Cần Node.js >= 20 (hiện tại $(node --version))"
   exit 1
 fi
 echo "✅ Node.js $(node --version)"
 
-# ── Detect arch ─────────────────────────────────
+# ── Phát hiện kiến trúc ────────────────────────
 ARCH=$(uname -m)
 case "$ARCH" in
   x86_64)   LS_BIN_NAME="language_server_linux_x64" ;;
   aarch64|arm64) LS_BIN_NAME="language_server_linux_arm" ;;
   *)
-    echo "⚠️  Unknown arch: $ARCH — defaulting to language_server_linux_x64"
+    echo "⚠️  Kiến trúc lạ: $ARCH — mặc định dùng language_server_linux_x64"
     LS_BIN_NAME="language_server_linux_x64"
     ;;
 esac
-echo "✅ Architecture: $ARCH → $LS_BIN_NAME"
+echo "✅ Kiến trúc: $ARCH → $LS_BIN_NAME"
 
-# ── Install files ───────────────────────────────
-echo "📁 Installing to $INSTALL_DIR ..."
+# ── Kiểm tra công cụ cần thiết ─────────────────
+for tool in curl tar; do
+  if ! command -v "$tool" &>/dev/null; then
+    echo "❌ Thiếu công cụ '$tool'. Hãy cài đặt rồi chạy lại."
+    exit 1
+  fi
+done
+
+# ── Tự động tải Windsurf Language Server ───────
+LS_PATH="${LS_DIR}/${LS_BIN_NAME}"
+download_language_server() {
+  echo ""
+  echo "⬇️  Tự động tải Windsurf Linux từ mirror chính thức..."
+  echo "    (binary này không thể đóng gói cùng repo do giấy phép của Windsurf)"
+
+  # Lấy URL tarball mới nhất từ API update
+  local update_json
+  if ! update_json=$(curl -fsSL "$WINDSURF_UPDATE_API"); then
+    echo "❌ Không gọi được API update của Windsurf: $WINDSURF_UPDATE_API"
+    return 1
+  fi
+
+  local tarball_url
+  tarball_url=$(echo "$update_json" | grep -o '"url":"[^"]*' | head -1 | cut -d'"' -f4)
+  if [ -z "$tarball_url" ]; then
+    echo "❌ Không trích xuất được URL tarball từ phản hồi: $update_json"
+    return 1
+  fi
+
+  local windsurf_version
+  windsurf_version=$(echo "$update_json" | grep -o '"windsurfVersion":"[^"]*' | head -1 | cut -d'"' -f4)
+  echo "    Phiên bản Windsurf: ${windsurf_version:-unknown}"
+  echo "    URL: $tarball_url"
+
+  local tmpdir
+  tmpdir=$(mktemp -d /tmp/windsurf-install.XXXXXX)
+  trap "rm -rf '$tmpdir'" RETURN
+
+  echo "    Đang tải về (~270 MB)..."
+  if ! curl -fL --progress-bar -o "$tmpdir/windsurf.tar.gz" "$tarball_url"; then
+    echo "❌ Tải tarball thất bại"
+    return 1
+  fi
+
+  echo "    Đang trích xuất ${LS_BIN_NAME}..."
+  if ! tar -xzf "$tmpdir/windsurf.tar.gz" \
+        -C "$tmpdir" \
+        "Windsurf/resources/app/extensions/windsurf/bin/${LS_BIN_NAME}" 2>/dev/null; then
+    echo "    Đường dẫn chuẩn không có, thử tìm trong tarball..."
+    local extracted
+    extracted=$(tar -tzf "$tmpdir/windsurf.tar.gz" | grep -E "/${LS_BIN_NAME}\$" | head -1)
+    if [ -z "$extracted" ]; then
+      echo "❌ Không tìm thấy ${LS_BIN_NAME} trong tarball"
+      return 1
+    fi
+    tar -xzf "$tmpdir/windsurf.tar.gz" -C "$tmpdir" "$extracted"
+  fi
+
+  local extracted_path
+  extracted_path=$(find "$tmpdir" -name "${LS_BIN_NAME}" -type f | head -1)
+  if [ -z "$extracted_path" ]; then
+    echo "❌ Trích xuất xong nhưng không thấy file ${LS_BIN_NAME}"
+    return 1
+  fi
+
+  echo "    Cài đặt vào ${LS_PATH}..."
+  sudo mkdir -p "$LS_DIR"
+  sudo cp "$extracted_path" "$LS_PATH"
+  sudo chmod +x "$LS_PATH"
+  echo "✅ Đã cài đặt Language Server tại $LS_PATH"
+}
+
+if [ ! -x "$LS_PATH" ]; then
+  if ! download_language_server; then
+    echo ""
+    echo "⚠️  Không tải được binary tự động."
+    echo "   Cài đặt thủ công:"
+    echo "   1. Tải Windsurf Linux tarball từ https://windsurf.com/editor/download"
+    echo "   2. Trích xuất ${LS_BIN_NAME} vào $LS_DIR/"
+    echo "   3. chmod +x $LS_PATH"
+    echo ""
+    read -p "   Tiếp tục cài đặt mà không có Language Server? [y/N] " yn
+    [[ "$yn" != "y" && "$yn" != "Y" ]] && exit 1
+  fi
+else
+  echo "✅ Đã có Language Server tại $LS_PATH (bỏ qua bước tải)"
+fi
+
+# ── Cài đặt file của project ───────────────────
+echo "📁 Cài đặt vào $INSTALL_DIR ..."
 mkdir -p "$INSTALL_DIR"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,28 +145,12 @@ cp "$SCRIPT_DIR/../README.md" "$INSTALL_DIR/" 2>/dev/null || true
 cp "$SCRIPT_DIR/../CHANGELOG.md" "$INSTALL_DIR/" 2>/dev/null || true
 cp "$SCRIPT_DIR/../LICENSE"      "$INSTALL_DIR/" 2>/dev/null || true
 
-# ── Check Windsurf Language Server ──────────────
-LS_PATH="/opt/windsurf/${LS_BIN_NAME}"
-if [ ! -x "$LS_PATH" ]; then
-  echo ""
-  echo "⚠️  Windsurf Language Server not found at:"
-  echo "    $LS_PATH"
-  echo ""
-  echo "   Install it manually:"
-  echo "   1. Download the Windsurf Linux tarball from https://windsurf.com/download"
-  echo "   2. Extract ${LS_BIN_NAME} to /opt/windsurf/"
-  echo "   3. chmod +x $LS_PATH"
-  echo ""
-  read -p "   Continue anyway? [y/N] " yn
-  [[ "$yn" != "y" && "$yn" != "Y" ]] && exit 1
-fi
-
-# ── systemd unit ────────────────────────────────
+# ── Tạo unit systemd ───────────────────────────
 if [ -d /etc/systemd/system ]; then
-  echo "🛠  Writing systemd unit to $SERVICE_FILE ..."
+  echo "🛠  Ghi unit systemd vào $SERVICE_FILE ..."
   sudo tee "$SERVICE_FILE" >/dev/null <<EOF
 [Unit]
-Description=WindsurfPoolAPI — multi-account pool proxy for Windsurf
+Description=WindsurfPoolAPI — proxy nhiều tài khoản cho Windsurf
 After=network.target
 
 [Service]
@@ -99,16 +175,16 @@ EOF
   sudo systemctl enable --now "$SERVICE_NAME"
 
   echo ""
-  echo "✅ Installed! Service is running."
+  echo "✅ Đã cài đặt xong! Dịch vụ đang chạy."
   echo ""
-  echo "Commands:"
+  echo "Lệnh hữu ích:"
   echo "  sudo systemctl status $SERVICE_NAME"
   echo "  sudo systemctl restart $SERVICE_NAME"
   echo "  sudo journalctl -u $SERVICE_NAME -f"
   echo ""
   echo "Dashboard: http://localhost:3003/dashboard"
 else
-  echo "⚠️  /etc/systemd/system not present — skipping service install."
-  echo "   Start manually with:"
+  echo "⚠️  Không có /etc/systemd/system — bỏ qua cài đặt service."
+  echo "   Khởi động thủ công:"
   echo "   cd $INSTALL_DIR && node src/index.js"
 fi

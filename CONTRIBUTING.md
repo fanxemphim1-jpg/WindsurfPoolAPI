@@ -1,102 +1,102 @@
-# 贡献指南
+# Hướng dẫn đóng góp
 
-感谢有兴趣为 **WindsurfAPI** 贡献代码。本文档说明环境准备、代码规范与 PR 流程。
+Cảm ơn bạn quan tâm đến việc đóng góp cho **WindsurfPoolAPI**. Tài liệu này mô tả cách chuẩn bị môi trường, quy ước code và quy trình PR.
 
-## 环境准备
+## Chuẩn bị môi trường
 
 - **Node.js ≥ 20**
-- **Windsurf Language Server 二进制文件** (`language_server_linux_x64`)，默认放在 `/opt/windsurf/`
-- 不需要 `npm install` —— 项目**零 npm 依赖**，只用 `node:*` 内置模块
+- **Binary Windsurf Language Server** (`language_server_linux_x64`), mặc định đặt tại `/opt/windsurf/`
+- Không cần `npm install` — dự án **không có dependency npm nào**, chỉ dùng module nội tại `node:*`
 
 ```bash
-git clone https://github.com/<your-fork>/WindsurfAPI.git
-cd WindsurfAPI
+git clone https://github.com/<your-fork>/WindsurfPoolAPI.git
+cd WindsurfPoolAPI
 
-# 快速启动（前台）
+# Khởi động nhanh (foreground)
 node src/index.js
 
-# 开发模式（文件变更自动重启）
+# Chế độ phát triển (tự khởi động lại khi file thay đổi)
 node --watch src/index.js
 ```
 
-服务默认监听 `http://0.0.0.0:3003`，Dashboard 在 `/dashboard`。
+Service mặc định lắng nghe trên `http://0.0.0.0:3003`, dashboard tại `/dashboard`.
 
-## 代码规范
+## Quy ước code
 
-### 零 npm 依赖原则
+### Nguyên tắc không có dependency npm
 
-- **不要**添加任何 `npm install <xxx>`。需要 HTTP/protobuf/crypto 功能？用 `node:https` / 手写 varint / `node:crypto`
-- 这是项目的设计取舍：安全面小、启动快、部署简单
-- `package.json` 里的 `dependencies` 字段必须保持为空（CI 会校验）
+- **Không** thêm bất kỳ `npm install <xxx>` nào. Cần HTTP / protobuf / crypto? Dùng `node:https` / tự viết varint / `node:crypto`.
+- Đây là quyết định thiết kế: bề mặt bảo mật nhỏ hơn, khởi động nhanh hơn, triển khai đơn giản hơn.
+- Trường `dependencies` trong `package.json` phải luôn rỗng (CI sẽ kiểm tra).
 
-### 代码风格
+### Phong cách code
 
-- ES modules (`import`/`export`)，不用 CommonJS
-- 注释使用**英文**，Dashboard UI 用**简体中文**
-- 变量命名用 camelCase，类用 PascalCase
-- 错误日志一律走 `log.info/warn/error/debug`（来自 `src/config.js`）
+- Dùng ES modules (`import`/`export`), không dùng CommonJS.
+- Comment viết bằng **tiếng Anh**, UI Dashboard viết bằng **tiếng Việt**.
+- Đặt tên biến theo `camelCase`, class theo `PascalCase`.
+- Mọi lỗi/log đều đi qua `log.info/warn/error/debug` (từ `src/config.js`).
 
-### 文件组织
+### Tổ chức file
 
-参考 `ARCHITECTURE.md` 的模块划分。新增功能建议：
+Tham khảo `ARCHITECTURE.md` để biết cách phân chia module. Khi thêm tính năng mới:
 
-- HTTP 路由入口 → `src/server.js`
-- 请求处理逻辑 → `src/handlers/*.js`
-- Dashboard 后端 API → `src/dashboard/api.js`
-- Dashboard 前端 → `src/dashboard/index.html`
-- 持久化状态 → 写单独的 `*.json` 文件（加入 `.gitignore`）
+- HTTP entry point → `src/server.js`
+- Logic xử lý request → `src/handlers/*.js`
+- API backend của Dashboard → `src/dashboard/api.js`
+- Frontend Dashboard → `src/dashboard/index.html`
+- Trạng thái bền vững → ghi vào file `*.json` riêng (đã thêm vào `.gitignore`)
 
-## 提交规范
+## Quy ước commit
 
-采用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
+Áp dụng định dạng [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```text
-feat: 新功能
-fix:  修 bug
-docs: 文档
-refactor: 重构（不影响功能）
-perf: 性能优化
-test: 测试
-chore: 构建/脚手架
+feat: tính năng mới
+fix:  sửa bug
+docs: tài liệu
+refactor: refactor (không ảnh hưởng tính năng)
+perf: tối ưu hiệu năng
+test: test
+chore: build / scaffold
 ```
 
-示例：
+Ví dụ:
 
 ```text
 feat(dashboard): add token usage export/import endpoints
 fix(cascade): handle panel-state-not-found on Send retry
 ```
 
-## PR 检查清单
+## Checklist khi mở PR
 
-提交 PR 前请确认：
+Trước khi mở PR hãy kiểm tra:
 
-- [ ] `find src -name '*.js' -exec node --check {} \;` 全部通过
-- [ ] 没有引入 npm 依赖
-- [ ] 没有硬编码路径、IP、凭证
-- [ ] 新增功能在 README 和/或 ARCHITECTURE.md 中有说明
-- [ ] 敏感文件（`accounts.json` / `stats.json` / `.env` / `logs/` / `data/`）没有被提交
+- [ ] `find src -name '*.js' -exec node --check {} \;` chạy pass hết
+- [ ] Không thêm dependency npm
+- [ ] Không hardcode đường dẫn, IP, credential
+- [ ] Tính năng mới có mô tả trong README và/hoặc ARCHITECTURE.md
+- [ ] File nhạy cảm (`accounts.json` / `stats.json` / `.env` / `logs/` / `data/`) **không** được commit
 
-## 测试
+## Test
 
-目前项目没有正式的单元测试套件，但关键路径的验证办法：
+Hiện tại dự án chưa có bộ unit test chính thức, nhưng có thể xác minh các đường dẫn quan trọng như sau:
 
-### 本地冒烟
+### Smoke test cục bộ
 
 ```bash
-# 启动服务
+# Khởi động service
 node src/index.js &
 
-# 基本可用性
+# Kiểm tra availability cơ bản
 curl -fsS http://localhost:3003/health
 curl -fsS http://localhost:3003/v1/models | head -20
 
-# Dashboard 登录
+# Đăng nhập Dashboard
 curl -H "X-Dashboard-Password: $DASHBOARD_PASSWORD" \
   http://localhost:3003/dashboard/api/stats
 ```
 
-### Chat 端到端（需要已添加账号）
+### Chat end-to-end (cần đã thêm tài khoản)
 
 ```bash
 curl -sS http://localhost:3003/v1/chat/completions \
@@ -104,12 +104,12 @@ curl -sS http://localhost:3003/v1/chat/completions \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"say hi"}],"stream":false}'
 ```
 
-## 问题反馈
+## Phản hồi
 
-- **Bug**：[GitHub Issues](https://github.com/<org>/WindsurfAPI/issues)，请附上 `logs/error-*.jsonl` 的最近几行
-- **功能建议**：Issues 里贴上使用场景
-- **安全漏洞**：请**私下**邮件联系维护者，不要公开在 Issues
+- **Bug**: [GitHub Issues](https://github.com/<org>/WindsurfPoolAPI/issues), kèm vài dòng cuối của `logs/error-*.jsonl`.
+- **Đề xuất tính năng**: tạo Issue và mô tả use case.
+- **Lỗ hổng bảo mật**: vui lòng **liên hệ riêng** qua email với maintainer, không công khai trên Issues.
 
-## 许可
+## Giấy phép
 
-贡献代码等同同意以 MIT 许可证发布。
+Khi đóng góp code, bạn đồng thuận phát hành theo giấy phép MIT.

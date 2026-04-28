@@ -1,166 +1,164 @@
 # ARCHITECTURE.md
 
-Developer-facing notes on the internal design. Read this before making non-trivial
-changes — several subsystems have sharp edges that aren't obvious from the code alone.
+Tài liệu thiết kế nội bộ dành cho lập trình viên. Hãy đọc trước khi thực hiện những
+thay đổi không tầm thường — một số subsystem có những "góc sắc" mà chỉ đọc code thuần
+sẽ không nhận ra.
 
-Windsurf-to-OpenAI compatible proxy. Headless Node.js service that authenticates
-with Codeium's backend via the Windsurf language server binary (`language_server_linux_x64`)
-over gRPC, and exposes `/v1/chat/completions` to OpenAI-compatible clients.
+Proxy chuyển từ Windsurf sang định dạng OpenAI. Là một service Node.js không có UI,
+xác thực với backend của Codeium thông qua binary Windsurf Language Server
+(`language_server_linux_x64`) qua gRPC, và expose `/v1/chat/completions` cho client tương thích OpenAI.
 
-## Run it
+## Cách chạy
 
 ```bash
-node src/index.js          # prod entry
-node --watch src/index.js  # dev (npm run dev)
+node src/index.js          # entry point production
+node --watch src/index.js  # chế độ dev (npm run dev)
 ```
 
-Requires Node >= 20. Zero npm deps — the whole project is pure `node:*` builtins.
-Language server binary must exist at `config.lsBinaryPath` (default
-`/opt/windsurf/language_server_linux_x64`). On Windows the LS won't start, but
-the HTTP server and dashboard still come up for local dev of non-chat paths.
+Yêu cầu Node >= 20. Không có dependency npm nào — toàn bộ project chỉ dùng module nội tại `node:*`.
+Binary Language Server phải tồn tại tại `config.lsBinaryPath` (mặc định
+`/opt/windsurf/language_server_linux_x64`). Trên Windows, LS sẽ không khởi động được, nhưng
+HTTP server và dashboard vẫn lên được để dev những phần không liên quan đến chat.
 
-## Architecture
+## Kiến trúc
 
 ```
 src/
-  index.js           - entry point, boots LS + HTTP server
-  server.js          - HTTP server, route dispatch, streaming
-  config.js          - env + defaults (.env overrides)
-  auth.js            - account pool, RPM tracking, tier/blocklist, credit refresh
-  models.js          - model catalog + tier->models table (MODEL_TIER_ACCESS)
-  langserver.js      - LS pool: one binary per unique egress proxy
+  index.js           - entry point, khởi động LS + HTTP server
+  server.js          - HTTP server, dispatch route, streaming
+  config.js          - env + default (.env override)
+  auth.js            - pool tài khoản, theo dõi RPM, tier/blocklist, refresh credit
+  models.js          - catalog model + bảng tier->models (MODEL_TIER_ACCESS)
+  langserver.js      - pool LS: mỗi proxy egress duy nhất một binary
   client.js          - WindsurfClient: StartCascade / Send / poll trajectory
-  windsurf.js        - protobuf builders + parsers (exa.language_server_pb, exa.cortex_pb)
-  proto.js           - minimal varint/length-prefixed reader/writer
-  grpc.js            - gRPC-over-HTTP2 unary call helper
-  connect.js         - Firebase + api.codeium.com sign-in (register_user)
-  conversation-pool.js - experimental cascade_id reuse pool (OFF by default)
-  runtime-config.js  - runtime-config.json: experimental toggles
-  cache.js           - in-memory exact-body response cache
+  windsurf.js        - protobuf builder + parser (exa.language_server_pb, exa.cortex_pb)
+  proto.js           - reader/writer varint length-prefixed tối thiểu
+  grpc.js            - helper gRPC qua HTTP/2 (unary call)
+  connect.js         - Firebase + đăng nhập api.codeium.com (register_user)
+  conversation-pool.js - pool tái sử dụng cascade_id thử nghiệm (mặc định OFF)
+  runtime-config.js  - runtime-config.json: bật/tắt tính năng thử nghiệm
+  cache.js           - cache phản hồi theo body trùng khớp
   handlers/
-    chat.js          - /v1/chat/completions: model routing, retry, tool emulation
+    chat.js          - /v1/chat/completions: định tuyến model, retry, tool emulation
     models.js        - /v1/models
-    tool-emulation.js - prompt-level <tool_call> protocol for Cascade (no native slot)
+    tool-emulation.js - tool calling bằng prompt <tool_call> (Cascade không có slot riêng)
   dashboard/
-    api.js           - /dashboard/api/* admin routes
-    index.html       - single-page admin UI (shadcn-style dark theme)
+    api.js           - các route admin /dashboard/api/*
+    index.html       - SPA admin một trang (dark theme kiểu shadcn)
     logger.js        - ring buffer + SSE log stream
-    proxy-config.js  - global + per-account proxy config (proxy-config.json)
-    model-access.js  - global model allow/blocklist (model-access.json)
-    stats.js         - request counters
-    windsurf-login.js - direct Windsurf email+password sign-in flow
+    proxy-config.js  - cấu hình proxy toàn cục + theo tài khoản (proxy-config.json)
+    model-access.js  - allow/blocklist model toàn cục (model-access.json)
+    stats.js         - bộ đếm request
+    windsurf-login.js - flow đăng nhập trực tiếp Windsurf (email + password)
 ```
 
-**Request flow (chat):** `server.js` → `handlers/chat.js` → account pick
+**Flow request (chat):** `server.js` → `handlers/chat.js` → chọn tài khoản
 (`auth.getApiKey(tried, modelKey)`) → `langserver.getLsFor(proxy)` → `WindsurfClient.cascadeChat()`
-or `.rawGetChatMessage()` → gRPC unary calls to `LanguageServerService/StartCascade`,
+hoặc `.rawGetChatMessage()` → các unary gRPC call tới `LanguageServerService/StartCascade`,
 `SendUserCascadeMessage`, polling `GetCascadeTrajectorySteps`/`GetCascadeTrajectory`.
 
-**Cascade vs legacy:** Models with a `modelUid` go through the Cascade flow.
-Models with only `enumValue > 0` (no `modelUid`) use legacy `RawGetChatMessage`.
-Newer models (gemini-3.0, gpt-5.2, etc.) have both `enumValue` AND `modelUid` —
-they MUST use Cascade because the LS binary rejects their high enum values in the
-legacy proto endpoint with "cannot parse invalid wire-format data".
+**Cascade vs legacy:** Các model có `modelUid` đi qua flow Cascade.
+Các model chỉ có `enumValue > 0` (không có `modelUid`) dùng `RawGetChatMessage` cũ.
+Model mới hơn (gemini-3.0, gpt-5.2…) có cả `enumValue` LẪN `modelUid` —
+chúng BẮT BUỘC dùng Cascade vì binary LS từ chối enum value cao của chúng ở endpoint legacy
+với lỗi "cannot parse invalid wire-format data".
 
-**LS pool:** one LS process per unique outbound proxy URL. Mixing accounts with
-different proxies in a single LS causes silent state pollution — `InitializeCascadePanelState`
-starts failing with "The pending stream has been canceled" and all accounts look "expired".
-Always route an account through `getLsFor(acct.proxy)`.
+**Pool LS:** mỗi outbound proxy URL duy nhất tương ứng một LS process. Trộn các tài khoản
+có proxy khác nhau vào cùng một LS sẽ gây ô nhiễm trạng thái âm thầm — `InitializeCascadePanelState`
+bắt đầu fail với "The pending stream has been canceled" và mọi tài khoản đều "expired".
+Luôn route tài khoản qua `getLsFor(acct.proxy)`.
 
-**Tool emulation:** Cascade's protobuf has no per-request slot for client-defined
-tool schemas (verified against the on-disk `exa.cortex_pb.proto` — `SendUserCascadeMessageRequest`
-fields 1–6 are cascade_id / items / metadata / experiment_config / cascade_config / images,
-nothing for tool defs). When a caller passes OpenAI-format `tools[]`, we serialize
-them into the user text as a `<tool_call>{...}</tool_call>` emission contract and
-parse blocks back out of the Cascade text stream. Lives in `src/handlers/tool-emulation.js`.
+**Tool emulation:** Protobuf của Cascade không có slot per-request cho schema tool do client
+định nghĩa (kiểm chứng qua file `exa.cortex_pb.proto` trên đĩa — `SendUserCascadeMessageRequest`
+có field 1–6 là cascade_id / items / metadata / experiment_config / cascade_config / images,
+không có gì cho tool def). Khi caller truyền `tools[]` định dạng OpenAI, ta serialize chúng
+vào text user dạng giao kèo `<tool_call>{...}</tool_call>` và parse các block ngược ra từ
+text stream Cascade trả về. Logic nằm tại `src/handlers/tool-emulation.js`.
 
-**Planner mode is load-bearing.** `buildCascadeConfig()` sets
-`CascadeConversationalPlannerConfig.planner_mode = 3 (NO_TOOL)` — not the
-`DEFAULT = 1` that all reference repos (pqhaz3925, AlexStrNik) use. The enum
-`exa.codeium_common.ConversationalPlannerMode` has seven values:
+**Planner mode rất quan trọng.** `buildCascadeConfig()` đặt
+`CascadeConversationalPlannerConfig.planner_mode = 3 (NO_TOOL)` — KHÔNG phải
+`DEFAULT = 1` mà mọi repo tham khảo (pqhaz3925, AlexStrNik) đang dùng. Enum
+`exa.codeium_common.ConversationalPlannerMode` có 7 giá trị:
 `UNSPECIFIED=0 DEFAULT=1 READ_ONLY=2 NO_TOOL=3 EXPLORE=4 PLANNING=5 AUTO=6`.
-DEFAULT keeps Cascade's IDE-agent loop hot even when `CascadeToolConfig` is
-unset, so the planner reflexively fires `edit_file /tmp/windsurf-workspace/...`
-on every turn, producing (a) 20 % `stall_warm` false-positives from silent
-tool-execution trajectory steps where `responseText` stops growing while
-status stays ACTIVE, (b) `"Cascade cannot create foo because it already
-exists"` errors on bursts that reuse filenames, (c) `/tmp/windsurf-workspace/`
-path leaks narrated into response bodies. NO_TOOL skips the loop entirely.
-Stress-tested 2026-04 on a remote host — 15-way opus concurrency went from
-13/15 → 15/15 success, 99 s → 35 s wall time, 0 path leaks, 0 filename conflicts.
+DEFAULT giữ vòng lặp IDE-agent của Cascade luôn nóng kể cả khi `CascadeToolConfig` không được set,
+khiến planner phản xạ gọi `edit_file /tmp/windsurf-workspace/...` mỗi turn, dẫn đến
+(a) 20 % `stall_warm` false-positive vì step trajectory thực thi tool âm thầm khiến
+`responseText` ngừng tăng trong khi status vẫn ACTIVE, (b) lỗi `"Cascade cannot create foo
+because it already exists"` khi burst dùng lại tên file, (c) đường dẫn `/tmp/windsurf-workspace/`
+bị leak trong response. NO_TOOL bỏ qua hoàn toàn vòng lặp này.
+Stress test 04/2026 trên một host từ xa — concurrency 15 luồng opus tăng từ
+13/15 → 15/15 thành công, wall time 99 s → 35 s, 0 path leak, 0 conflict tên file.
 
-**DO NOT** confuse `planner_mode` with `CascadeToolConfig.run_command`. They
-are different fields — `planner_mode` lives on `CascadeConversationalPlannerConfig`
-(field 4), `run_command` lives on `CascadeToolConfig` (field 8 of the tool
-config). NO_TOOL is the flag to set; `tool_config` must stay unset — turning
-`run_command` on puts the agent into auto-execute mode and breaks things worse.
+**KHÔNG** lẫn lộn `planner_mode` với `CascadeToolConfig.run_command`. Đây là hai field khác nhau —
+`planner_mode` thuộc `CascadeConversationalPlannerConfig` (field 4), `run_command` thuộc
+`CascadeToolConfig` (field 8 của tool config). NO_TOOL là cờ cần đặt; `tool_config` phải
+giữ unset — bật `run_command` đẩy agent vào chế độ tự thực thi và làm mọi thứ tệ hơn.
 
 ## Dashboard
 
-Single page at `/dashboard`. Auth: bearer token = `config.API_KEY` or configured
-dashboard password. 8 panels: 總覽 / 登入取號 / 帳號管理 / 模型控制 / Proxy / 日誌 / 統計 / 封禁偵測.
+SPA tại `/dashboard`. Auth: bearer token = `config.API_KEY` hoặc password dashboard đã cấu hình.
+8 panel: Tổng quan / Đăng nhập / Tài khoản / Model / Proxy / Log / Thống kê / Phát hiện chặn.
 
-Persisted state lives in JSON files next to `src/`:
-- `accounts.json` — account pool (tier, capabilities, blockedModels, credits, proxy)
-- `proxy-config.json` — global + per-account proxy URLs
-- `model-access.json` — global model allow/blocklist
-- `runtime-config.json` — experimental toggles (cascadeConversationReuse, etc.)
+Trạng thái bền vững nằm ở các file JSON cạnh `src/`:
+- `accounts.json` — pool tài khoản (tier, capabilities, blockedModels, credits, proxy)
+- `proxy-config.json` — URL proxy toàn cục và theo tài khoản
+- `model-access.json` — allow/blocklist model toàn cục
+- `runtime-config.json` — toggle các tính năng thử nghiệm (cascadeConversationReuse, …)
 
-## Conventions
+## Quy ước
 
-- **Language:** Dashboard UI (`src/dashboard/index.html`) uses **简体中文**.
-  README and `docs/` GitHub Pages use **繁體中文**. Code identifiers and comments
-  stay in English.
-- **Dashboard UI:** shadcn-style dark theme via CSS variables (`--surface`, `--accent`, `--radius`).
-  NEVER use browser `alert()` / `confirm()` / `prompt()`. Use `App.confirm(title, desc, opts)`
-  and `App.prompt(title, desc, fields)` — they render styled modal overlays. `App.confirm`
-  supports `opts.html`, `opts.wide`, `opts.titleHtml`, `opts.danger`, `opts.okText`.
-- **No npm deps.** Stick to `node:*` builtins. If you need protobuf, hand-roll it in `proto.js`.
-- **Errors that must not burn account error counters:** rate limits, `permission_denied`,
-  `failed_precondition`, and upstream "internal error occurred (error ID: ...)".
-  See `reportInternalError` / `markRateLimited` in `auth.js`.
-- **Logs:** use `log.info/warn/error/debug` from `config.js` — these feed the dashboard
-  log panel via `dashboard/logger.js`.
-- **Git line endings:** the repo has `text=auto`; Windows checkouts will complain
-  about LF→CRLF on save. Ignore the warnings.
+- **Ngôn ngữ:** Dashboard UI (`src/dashboard/index.html`) dùng **tiếng Việt**.
+  README và các trang `docs/` GitHub Pages dùng **tiếng Việt**. Identifier và comment trong
+  code giữ ở tiếng Anh.
+- **Dashboard UI:** dark theme kiểu shadcn qua biến CSS (`--surface`, `--accent`, `--radius`).
+  KHÔNG được dùng `alert()` / `confirm()` / `prompt()` của trình duyệt. Hãy dùng
+  `App.confirm(title, desc, opts)` và `App.prompt(title, desc, fields)` — chúng render modal
+  có style. `App.confirm` hỗ trợ `opts.html`, `opts.wide`, `opts.titleHtml`, `opts.danger`, `opts.okText`.
+- **Không thêm dependency npm.** Bám vào module nội tại `node:*`. Nếu cần protobuf, hãy tự viết
+  trong `proto.js`.
+- **Lỗi không được tăng error counter của tài khoản:** rate limit, `permission_denied`,
+  `failed_precondition`, và "internal error occurred (error ID: …)" từ upstream.
+  Xem `reportInternalError` / `markRateLimited` trong `auth.js`.
+- **Log:** dùng `log.info/warn/error/debug` từ `config.js` — chúng đẩy lên panel log của
+  dashboard qua `dashboard/logger.js`.
+- **Line ending git:** repo có `text=auto`; checkout trên Windows có thể cảnh báo LF→CRLF khi save. Bỏ qua.
 
-## Deploy
+## Triển khai
 
-Two supported flows; both avoid the zombie-process trap you get from `pm2 restart`:
+Có hai cách được hỗ trợ; cả hai đều tránh được "zombie process trap" của `pm2 restart`:
 
-**PM2 (common):**
+**PM2 (phổ biến):**
 
 ```bash
 pm2 stop windsurf-api && pm2 delete windsurf-api
 fuser -k 3003/tcp 2>/dev/null
 sleep 2
-pm2 start src/index.js --name windsurf-api --cwd /path/to/WindsurfAPI
+pm2 start src/index.js --name windsurf-api --cwd /path/to/WindsurfPoolAPI
 ```
 
-**Docker:** `docker compose up -d --build` — see `Dockerfile` and `docker-compose.yml`.
-You still need to mount the Windsurf Language Server binary into the container
-(`/opt/windsurf/language_server_linux_x64`); it cannot be bundled for license reasons.
+**Docker:** `docker compose up -d --build` — xem `Dockerfile` và `docker-compose.yml`.
+Bạn vẫn cần mount binary Windsurf Language Server vào container
+(`/opt/windsurf/language_server_linux_x64`); không thể đóng gói cùng image vì lý do giấy phép.
 
-Do NOT use `pm2 restart windsurf-api` — on at least some Node/PM2 combos it leaves
-the old process alive holding port 3003, and the new one silently falls back to
-a different port without warning.
+KHÔNG dùng `pm2 restart windsurf-api` — trên một số tổ hợp Node/PM2, lệnh này để lại
+process cũ giữ port 3003, process mới sẽ âm thầm fallback sang port khác mà không cảnh báo.
 
-## Known gotchas
+## Các "gotcha" đã biết
 
-1. **Free tier** only serves `gpt-4o-mini` and `gemini-2.5-flash` — all Claude and
-   premium models return `permission_denied`. Hardcoded in `MODEL_TIER_ACCESS.free`.
-2. **Workspace wipe on startup** — `src/index.js` runs `rm -rf /tmp/windsurf-workspace/*`
-   before the LS starts. If you skip this, files created by Cascade's baked-in
-   file-editing tools persist across restarts and the model starts narrating
-   "edits" to files the caller never mentioned.
-3. **`responseText` vs `modifiedText`:** while streaming, prefer `responseText`
-   (append-only). Only top up with `modifiedText` at idle if it's a strict prefix
-   extension of `responseText`. See the big comment block in `client.js` around
-   the cascade polling loop.
-4. **Firebase API key** for Windsurf auth is `AIzaSyDsOl-1XpT5err0Tcnx8FFod1H8gVGIycY`
-   (extracted from `https://windsurf.com/_next/static/chunks/46097-*.js`). Three
-   other keys have been tried and confirmed to NOT work — do not rotate to them.
-5. **Protobuf field numbers** are hand-rolled in `src/windsurf.js` and `src/proto.js`.
-   When Windsurf ships a new model or capability, diff against the LS binary's
-   `exa.cortex_pb` / `exa.language_server_pb` proto descriptors before adding
-   fields — the varint wire format is unforgiving of silent schema drift.
+1. **Tier Free** chỉ phục vụ `gpt-4o-mini` và `gemini-2.5-flash` — mọi model Claude và premium
+   sẽ trả `permission_denied`. Hardcode trong `MODEL_TIER_ACCESS.free`. Có thể bypass bằng
+   `BYPASS_ENTITLEMENT=1` để test xem upstream Windsurf có chặn hay không.
+2. **Workspace bị xoá khi khởi động** — `src/index.js` chạy `rm -rf /tmp/windsurf-workspace/*`
+   trước khi LS khởi động. Bỏ bước này thì các file do tool chỉnh sửa file của Cascade tạo ra
+   sẽ tồn tại qua các lần restart và model sẽ bắt đầu kể chuyện "đang sửa" những file mà
+   caller không hề nhắc đến.
+3. **`responseText` vs `modifiedText`:** trong lúc streaming, hãy ưu tiên `responseText`
+   (chỉ append). Chỉ topup từ `modifiedText` khi idle nếu nó là phần mở rộng strict prefix
+   của `responseText`. Xem block comment lớn trong `client.js` ở vòng poll cascade.
+4. **Firebase API key** dùng cho auth Windsurf là `AIzaSyDsOl-1XpT5err0Tcnx8FFod1H8gVGIycY`
+   (lấy từ `https://windsurf.com/_next/static/chunks/46097-*.js`). Đã thử ba key khác và
+   xác nhận KHÔNG hoạt động — đừng rotate sang chúng.
+5. **Số field protobuf** được tự viết trong `src/windsurf.js` và `src/proto.js`.
+   Khi Windsurf ship model hoặc capability mới, hãy diff với descriptor proto
+   `exa.cortex_pb` / `exa.language_server_pb` của binary LS trước khi thêm field —
+   wire format varint không tha thứ cho schema drift âm thầm.

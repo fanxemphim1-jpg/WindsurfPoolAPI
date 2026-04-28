@@ -10,96 +10,80 @@
 <h1 align="center">WindsurfPoolAPI</h1>
 
 <p align="center">
-  <b>Enterprise-grade multi-account pool proxy for Windsurf AI platform.</b><br/>
-  Expose 113+ models (Claude / GPT / Gemini / DeepSeek / Grok / Qwen / Kimi / GLM) via standard OpenAI & Anthropic APIs.<br/>
-  <sub>企业级 Windsurf 多账号池化 API 代理 —— 113+ 模型，OpenAI / Anthropic 双协议兼容，Cursor / Claude Code 原生支持</sub>
+  <b>Proxy đa tài khoản cấp doanh nghiệp cho nền tảng AI Windsurf.</b><br/>
+  Expose 113+ model (Claude / GPT / Gemini / DeepSeek / Grok / Qwen / Kimi / GLM) qua API chuẩn OpenAI và Anthropic.<br/>
+  <sub>Pool nhiều tài khoản Windsurf, hỗ trợ song song hai giao thức OpenAI / Anthropic, tương thích Cursor / Claude Code.</sub>
 </p>
 
 <p align="center">
-  <a href="#-quick-start--快速开始">Quick Start</a> ·
-  <a href="#-features--核心特性">Features</a> ·
-  <a href="#-dashboard--管理后台">Dashboard</a> ·
-  <a href="#-api-reference--接口文档">API Reference</a> ·
-  <a href="#-deployment--部署指南">Deployment</a> ·
-  <a href="#-faq--常见问题">FAQ</a>
+  <a href="#-bắt-đầu-nhanh">Bắt đầu nhanh</a> ·
+  <a href="#-tính-năng">Tính năng</a> ·
+  <a href="#-dashboard">Dashboard</a> ·
+  <a href="#-tài-liệu-api">API</a> ·
+  <a href="#-hướng-dẫn-triển-khai">Triển khai</a> ·
+  <a href="#-câu-hỏi-thường-gặp">FAQ</a>
 </p>
 
 ---
 
-## ⚠️ Disclaimer / 声明
+## ⚠️ Tuyên bố / Disclaimer
 
-This project is for **personal learning, research, and self-hosting only**. Commercial use, resale, paid deployment, or repackaging as a service without written authorization is **strictly prohibited**.
-
-本项目仅供**个人学习、研究、自用**。未经作者书面授权，禁止任何商业用途、付费代部署、中转转售或包装成服务对外销售。
+Dự án này chỉ phục vụ mục đích **học tập, nghiên cứu cá nhân và tự dùng (self-host)**. Mọi hành vi sử dụng thương mại, bán lại, triển khai có thu phí hoặc đóng gói thành dịch vụ cung cấp ra bên ngoài khi chưa có văn bản cho phép của tác giả đều **bị nghiêm cấm**.
 
 ---
 
-## ✨ Features / 核心特性
+## ✨ Tính năng
 
-| Feature | Description |
+| Tính năng | Mô tả |
 | :--- | :--- |
-| **Dual Protocol** | `/v1/chat/completions` (OpenAI) + `/v1/messages` (Anthropic native) |
-| **113+ Models** | Claude Opus 4.7 · GPT-5.4 · Gemini 3.1 · DeepSeek R1 · Grok 3 · Qwen 3 · Kimi K2.5 · GLM-5.1 and more |
-| **Multi-Account Pool** | Capacity-based load balancing, automatic failover, per-model rate-limit isolation |
-| **Token & Credit Analytics** | Per-API × per-model aggregation down to individual request level |
-| **Admin Dashboard** | Full-featured SPA: account management, proxy config, real-time logs, usage charts |
-| **Batch Operations** | Select multiple accounts, enable/disable in one click |
-| **OAuth Login** | Google / GitHub Firebase OAuth + manual token refresh |
-| **Dynamic Stall Detection** | Input-length-aware timeout (30s–90s) prevents false positives on large contexts |
-| **Persistent State** | All settings, account status, tokens survive restarts |
-| **Image Upload** | Multimodal support — send images via `image_url` blocks (base64 or URL) |
-| **Tool Calling** | `<tool_call>` protocol compatible — works with Cursor, Aider, and other AI coding tools |
-| **Cursor Compatible** | 80+ model name aliases including Cursor-friendly names without "claude" keyword |
-| **Streaming SSE** | OpenAI format with `stream_options.include_usage` support |
-| **Zero Dependencies** | Pure Node.js built-in modules, nothing to install |
-
-<details>
-<summary><b>中文特性列表</b></summary>
-
-- **双协议兼容** — OpenAI + Anthropic 原生端点，无需任何中间件
-- **113+ 模型** — 启动时自动拉取 Windsurf 最新 catalog，实时更新
-- **多账号池** — 按剩余容量均衡分配，自动故障转移，per-model 限速隔离
-- **Token + Credit 精细统计** — 按 API × 模型分层聚合，精确到单次请求
-- **Dashboard 管理后台** — 账号管理、代理配置、实时日志、使用图表、封禁侦测
-- **批量操作** — 一键多选账号批量启用/停用
-- **OAuth 登录** — 支持 Google/GitHub Firebase OAuth 登录
-- **动态超时检测** — 根据输入长度自适应超时阈值（30s~90s），大上下文不误判
-- **全持久化** — 所有设置、账号状态、Token 均持久化存储，重启不丢失
-- **零依赖** — 纯 Node.js 内置模块，开箱即用
-
-</details>
+| **Hai giao thức** | `/v1/chat/completions` (OpenAI) + `/v1/messages` (Anthropic native) |
+| **113+ model** | Claude Opus 4.7 · GPT-5.4 · Gemini 3.1 · DeepSeek R1 · Grok 3 · Qwen 3 · Kimi K2.5 · GLM-5.1 và nhiều hơn nữa |
+| **Pool nhiều tài khoản** | Phân phối tải dựa trên dung lượng còn lại, tự động failover, giới hạn rate-limit độc lập theo từng model |
+| **Phân tích token & credit** | Tổng hợp theo từng API × từng model, chi tiết đến từng request |
+| **Dashboard quản trị** | SPA đầy đủ tính năng: quản lý tài khoản, cấu hình proxy, log realtime, biểu đồ sử dụng |
+| **Thao tác hàng loạt** | Chọn nhiều tài khoản và bật/tắt chỉ với một cú click |
+| **Đăng nhập OAuth** | Hỗ trợ Google / GitHub Firebase OAuth + làm mới token thủ công |
+| **Phát hiện stall động** | Timeout dựa theo độ dài input (30s–90s), giảm cảnh báo nhầm với context lớn |
+| **Trạng thái bền vững** | Mọi cài đặt, trạng thái tài khoản, token đều được lưu, restart không mất |
+| **Upload ảnh** | Hỗ trợ multimodal — gửi ảnh qua block `image_url` (base64 hoặc URL) |
+| **Tool calling** | Tương thích `<tool_call>` — hoạt động với Cursor, Aider và các công cụ AI coding khác |
+| **Tương thích Cursor** | Hơn 80 alias tên model (gồm các tên không chứa "claude" cho Cursor) |
+| **Streaming SSE** | Đúng định dạng OpenAI, hỗ trợ `stream_options.include_usage` |
+| **Không có dependency** | Chỉ dùng module nội tại của Node.js, không cần `npm install` |
 
 ---
 
-## 🚀 Quick Start / 快速开始
+## 🚀 Bắt đầu nhanh
 
-### Prerequisites / 前置条件
+### Yêu cầu
 
 - **Node.js ≥ 20**
-- **Windsurf Language Server** binary (`language_server_linux_x64` or `language_server_darwin_arm64`)
-- At least one Windsurf account (Free tier supports limited models)
+- **Binary Windsurf Language Server** (`language_server_linux_x64` hoặc `language_server_darwin_arm64`)
+- Tối thiểu một tài khoản Windsurf (gói Free hỗ trợ giới hạn model)
 
-### Install & Run / 安装启动
+### Cài đặt và chạy
 
 ```bash
 git clone https://github.com/guanxiaol/WindsurfPoolAPI.git
 cd WindsurfPoolAPI
 
-# Place Language Server binary / 放置 Language Server 二进制
+# Đặt binary Language Server vào /opt/windsurf/
 sudo mkdir -p /opt/windsurf
 sudo cp /path/to/language_server_linux_x64 /opt/windsurf/
 sudo chmod +x /opt/windsurf/language_server_linux_x64
 
-# Optional: configure / 可选配置
-cp .env.example .env    # Edit API_KEY, DASHBOARD_PASSWORD, etc.
+# Cấu hình tuỳ chọn
+cp .env.example .env    # Sửa API_KEY, DASHBOARD_PASSWORD, ...
 
-# Start / 启动
+# Khởi động
 node src/index.js
 ```
 
-> **macOS** — Run `bash scripts/install-macos.sh` for auto-start on login.
+> **Linux** — Chạy `bash scripts/install-linux.sh` để tự tải binary và cài đặt thành dịch vụ systemd.
 >
-> **Windows** — Run `scripts\install-windows.bat` for guided installation.
+> **macOS** — Chạy `bash scripts/install-macos.sh` để tự khởi động khi đăng nhập.
+>
+> **Windows** — Chạy `scripts\install-windows.bat` để cài đặt theo từng bước.
 
 Dashboard: `http://localhost:3003/dashboard`
 
@@ -109,43 +93,41 @@ Dashboard: `http://localhost:3003/dashboard`
 docker compose up -d --build
 ```
 
-Mount the LS binary at `/opt/windsurf/` on the host before starting.
+Mount binary Language Server vào `/opt/windsurf/` của host trước khi khởi động container.
 
 ---
 
-## 🔑 Account Management / 账号管理
+## 🔑 Quản lý tài khoản
 
-> ⚠️ **Always use Token login!** / **必须使用 Token 方式登录！**
+> ⚠️ **Luôn dùng phương thức đăng nhập bằng Token!**
 >
-> Windsurf has a known bug where email/password login may route requests to the wrong account.
+> Windsurf đang có một bug đã biết: đăng nhập bằng email/password có thể khiến request bị route sang nhầm tài khoản.
 >
-> Windsurf 官方存在 bug：邮箱/密码登录可能导致请求路由到错误账号。
->
-> **Get your token** / **获取 Token**：[https://windsurf.com/editor/show-auth-token?workflow=](https://windsurf.com/editor/show-auth-token?workflow=)
+> **Lấy token tại**: [https://windsurf.com/editor/show-auth-token?workflow=](https://windsurf.com/editor/show-auth-token?workflow=)
 
 ```bash
-# ✅ Add account via Token (recommended / 推荐)
+# Thêm tài khoản qua Token (khuyến nghị)
 curl -X POST http://localhost:3003/auth/login \
   -H "Content-Type: application/json" \
   -d '{"token": "your-windsurf-token"}'
 
-# Batch add / 批量添加
+# Thêm hàng loạt
 curl -X POST http://localhost:3003/auth/login \
   -H "Content-Type: application/json" \
   -d '{"accounts": [{"token": "t1"}, {"token": "t2"}]}'
 
-# List accounts / 列出账号
+# Liệt kê tài khoản
 curl http://localhost:3003/auth/accounts
 
-# Remove / 删除
+# Xoá tài khoản
 curl -X DELETE http://localhost:3003/auth/accounts/{id}
 ```
 
 ---
 
-## 📡 API Reference / 接口文档
+## 📡 Tài liệu API
 
-### OpenAI Compatible / OpenAI 兼容
+### Tương thích OpenAI
 
 ```bash
 curl http://localhost:3003/v1/chat/completions \
@@ -153,12 +135,12 @@ curl http://localhost:3003/v1/chat/completions \
   -H "Authorization: Bearer sk-your-api-key" \
   -d '{
     "model": "gpt-4o-mini",
-    "messages": [{"role": "user", "content": "Hello!"}],
+    "messages": [{"role": "user", "content": "Xin chào!"}],
     "stream": false
   }'
 ```
 
-### Anthropic Compatible / Anthropic 兼容
+### Tương thích Anthropic
 
 ```bash
 curl http://localhost:3003/v1/messages \
@@ -168,78 +150,79 @@ curl http://localhost:3003/v1/messages \
   -d '{
     "model": "claude-sonnet-4.6",
     "max_tokens": 1024,
-    "messages": [{"role": "user", "content": "Hello!"}]
+    "messages": [{"role": "user", "content": "Xin chào!"}]
   }'
 ```
 
-### Environment Variables / 环境变量
+### Biến môi trường
 
-| Variable | Default | Description |
+| Biến | Mặc định | Mô tả |
 | :--- | :--- | :--- |
-| `PORT` | `3003` | HTTP server port |
-| `API_KEY` | _(empty)_ | Auth key for `/v1/*` endpoints. Empty = open access |
-| `DASHBOARD_PASSWORD` | _(empty)_ | Dashboard admin password |
-| `DEFAULT_MODEL` | `claude-4.5-sonnet-thinking` | Default model when none specified |
-| `MAX_TOKENS` | `8192` | Default max output tokens |
+| `PORT` | `3003` | Cổng HTTP server |
+| `API_KEY` | _(rỗng)_ | Key xác thực cho `/v1/*`. Để rỗng = mở công khai |
+| `DASHBOARD_PASSWORD` | _(rỗng)_ | Mật khẩu admin của dashboard |
+| `DEFAULT_MODEL` | `claude-4.5-sonnet-thinking` | Model mặc định khi request không chỉ định |
+| `MAX_TOKENS` | `8192` | Số token output tối đa mặc định |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
-| `LS_BINARY_PATH` | `/opt/windsurf/language_server_linux_x64` | Language Server path |
-| `LS_PORT` | `42100` | Language Server gRPC port |
+| `LS_BINARY_PATH` | `/opt/windsurf/language_server_linux_x64` | Đường dẫn Language Server |
+| `LS_PORT` | `42100` | Cổng gRPC của Language Server |
+| `BYPASS_ENTITLEMENT` | _(rỗng)_ | Đặt `1` để bỏ qua kiểm tra tier — proxy sẽ thử forward tới Windsurf upstream cho mọi model. Hữu ích để debug |
 
 ### Dashboard API
 
-All endpoints require `X-Dashboard-Password` header.
+Tất cả endpoint đều yêu cầu header `X-Dashboard-Password`.
 
-| Method | Path | Description |
+| Method | Đường dẫn | Mô tả |
 | :--- | :--- | :--- |
-| `GET` | `/dashboard/api/overview` | System overview |
-| `GET` | `/dashboard/api/accounts` | List all accounts |
-| `POST` | `/dashboard/api/accounts/batch-status` | Batch enable/disable accounts |
-| `POST` | `/dashboard/api/oauth-login` | OAuth login (Google/GitHub) |
-| `POST` | `/dashboard/api/accounts/:id/refresh-token` | Refresh Firebase token |
-| `POST` | `/dashboard/api/accounts/:id/rate-limit` | Check account capacity |
-| `GET` | `/dashboard/api/usage` | Full usage statistics |
-| `GET` | `/dashboard/api/usage/export` | Export stats as JSON |
-| `POST` | `/dashboard/api/usage/import` | Import stats (auto-dedup) |
-| `GET` | `/dashboard/api/logs/stream` | Real-time SSE log stream |
+| `GET` | `/dashboard/api/overview` | Tổng quan hệ thống |
+| `GET` | `/dashboard/api/accounts` | Liệt kê toàn bộ tài khoản |
+| `POST` | `/dashboard/api/accounts/batch-status` | Bật/tắt hàng loạt tài khoản |
+| `POST` | `/dashboard/api/oauth-login` | Đăng nhập OAuth (Google/GitHub) |
+| `POST` | `/dashboard/api/accounts/:id/refresh-token` | Làm mới token Firebase |
+| `POST` | `/dashboard/api/accounts/:id/rate-limit` | Kiểm tra dung lượng tài khoản |
+| `GET` | `/dashboard/api/usage` | Toàn bộ thống kê sử dụng |
+| `GET` | `/dashboard/api/usage/export` | Xuất thống kê dạng JSON |
+| `POST` | `/dashboard/api/usage/import` | Nhập thống kê (tự dedup) |
+| `GET` | `/dashboard/api/logs/stream` | Stream log realtime qua SSE |
 
 ---
 
-## 🖥 Dashboard / 管理后台
+## 🖥 Dashboard
 
-Access at `http://localhost:3003/dashboard`
+Truy cập tại `http://localhost:3003/dashboard`
 
-| Panel | Description |
+| Panel | Mô tả |
 | :--- | :--- |
-| **Overview** | Runtime stats, account pool health, success rate |
-| **Login** | Windsurf token/email login, OAuth |
-| **Accounts** | Add/remove, batch enable/disable, per-account proxy, quota display |
-| **Models** | Global allow/blocklist, per-account model restrictions |
-| **Proxy** | Global + per-account HTTP/SOCKS5 proxy |
-| **Logs** | Real-time SSE log stream with level filtering |
-| **Analytics** | Token/Credit charts, 14-day trends, 24h distribution, request details |
-| **Detection** | Error pattern monitoring, account health |
-| **Experimental** | Cascade session reuse, model identity masking, preflight rate-limit |
+| **Tổng quan** | Số liệu runtime, tình trạng pool, tỉ lệ thành công |
+| **Đăng nhập** | Đăng nhập Windsurf bằng token/email, OAuth |
+| **Tài khoản** | Thêm/xoá, bật/tắt hàng loạt, proxy theo tài khoản, hiển thị quota |
+| **Model** | Allow/blocklist toàn cục, hạn chế model theo tài khoản |
+| **Proxy** | Proxy HTTP/SOCKS5 toàn cục và theo tài khoản |
+| **Log** | Stream log realtime qua SSE, lọc theo level |
+| **Phân tích** | Biểu đồ token/credit, xu hướng 14 ngày, phân bố 24h, chi tiết request |
+| **Phát hiện** | Theo dõi pattern lỗi, sức khoẻ tài khoản |
+| **Thử nghiệm** | Tái sử dụng cascade session, ẩn danh tính model, preflight rate-limit |
 
-### Screenshots / 界面预览
+### Ảnh chụp giao diện
 
 <p align="center">
-  <b>Account Pool — Multi-account quota monitoring / 多账号额度监控</b><br/>
+  <b>Pool tài khoản — Theo dõi quota nhiều tài khoản</b><br/>
   <img src="docs/screenshots/accounts.png" width="900" />
 </p>
 
 <p align="center">
-  <b>Analytics — Token & Credit usage charts / 统计分析面板</b><br/>
+  <b>Phân tích — Biểu đồ sử dụng Token & Credit</b><br/>
   <img src="docs/screenshots/analytics.png" width="900" />
 </p>
 
 <p align="center">
-  <b>Model Stats — Per-model request breakdown / 模型使用统计</b><br/>
+  <b>Thống kê model — Phân tích theo từng model</b><br/>
   <img src="docs/screenshots/models.png" width="900" />
 </p>
 
 ---
 
-## 🤖 Supported Models / 支持的模型
+## 🤖 Các model được hỗ trợ
 
 <details>
 <summary><b>Claude (Anthropic)</b></summary>
@@ -266,22 +249,20 @@ Access at `http://localhost:3003/dashboard`
 </details>
 
 <details>
-<summary><b>Others / 其他</b></summary>
+<summary><b>Khác</b></summary>
 
 `deepseek-v3` · `deepseek-r1` · `grok-3[-mini]` · `grok-code-fast-1` · `qwen-3` · `qwen-3-coder` ·
 `kimi-k2` · `kimi-k2.5` · `swe-1.5[-thinking]` · `swe-1.6-fast` · `arena-fast` · `arena-smart`
 
 </details>
 
-> Model catalog is auto-synced from Windsurf cloud on startup. Free accounts: `gpt-4o-mini` and `gemini-2.5-flash` only.
->
-> 启动时自动从 Windsurf 云端拉取最新模型列表。免费账号仅可用 `gpt-4o-mini` 和 `gemini-2.5-flash`。
+> Catalog model được tự động đồng bộ từ Windsurf cloud khi khởi động. Tài khoản Free chỉ dùng được `gpt-4o-mini` và `gemini-2.5-flash`.
 
 ---
 
-## 🚢 Deployment / 部署指南
+## 🚢 Hướng dẫn triển khai
 
-### PM2 (Recommended / 推荐)
+### PM2 (khuyến nghị)
 
 ```bash
 npm install -g pm2
@@ -320,7 +301,7 @@ sudo systemctl enable --now windsurfpool
 bash scripts/install-macos.sh
 ```
 
-### Firewall / 防火墙
+### Tường lửa
 
 ```bash
 # Ubuntu
@@ -330,68 +311,67 @@ sudo ufw allow 3003/tcp
 sudo firewall-cmd --add-port=3003/tcp --permanent && sudo firewall-cmd --reload
 ```
 
-> Cloud servers: remember to open port 3003 in your security group.
->
-> 云服务器记得在安全组中开放 3003 端口。
+> Với cloud server, nhớ mở port 3003 trong security group.
 
 ---
 
-## 🏗 Architecture / 架构
+## 🏗 Kiến trúc
 
 ```text
 Client (OpenAI SDK / Anthropic SDK / curl / Cursor / Aider)
    │
    ▼
 WindsurfPoolAPI  (Node.js HTTP, :3003)
-   ├── /v1/chat/completions    (OpenAI format)
-   ├── /v1/messages            (Anthropic format)
+   ├── /v1/chat/completions    (định dạng OpenAI)
+   ├── /v1/messages            (định dạng Anthropic)
    ├── /dashboard/api/*        (Admin API)
    └── /dashboard              (Admin SPA)
    │
    ▼
-Language Server Pool  (gRPC-over-HTTP/2, :42100+)
+Pool Language Server  (gRPC trên HTTP/2, :42100+)
    │
    ▼
 Windsurf Cloud  (server.self-serve.windsurf.com)
 ```
 
-See `ARCHITECTURE.md` for module-level details.
+Xem `ARCHITECTURE.md` để biết chi tiết từng module.
 
 ---
 
-## ❓ FAQ / 常见问题
+## ❓ Câu hỏi thường gặp
 
-**Q: `LS binary not found` on startup?**
-A: Ensure the binary exists at `/opt/windsurf/language_server_linux_x64` (or set `LS_BINARY_PATH`).
+**Q: Khởi động báo `LS binary not found`?**
+A: Đảm bảo binary tồn tại tại `/opt/windsurf/language_server_linux_x64` (hoặc đặt biến `LS_BINARY_PATH`).
 
-**Q: `No accounts available`?**
-A: Add at least one account via Dashboard or `POST /auth/login`.
+**Q: Báo `No accounts available`?**
+A: Thêm ít nhất một tài khoản qua Dashboard hoặc `POST /auth/login`.
 
-**Q: `permission_denied` for all accounts?**
-A: Free accounts only support `gpt-4o-mini` and `gemini-2.5-flash`. Other models require Windsurf Pro.
+**Q: Mọi tài khoản đều trả `permission_denied`?**
+A: Tài khoản Free chỉ hỗ trợ `gpt-4o-mini` và `gemini-2.5-flash`. Các model khác cần Windsurf Pro.
 
-**Q: How to migrate stats between servers?**
-A: Export: `GET /dashboard/api/usage/export` → Import: `POST /dashboard/api/usage/import` (auto-dedup).
+**Q: Làm sao migrate thống kê giữa các server?**
+A: Xuất: `GET /dashboard/api/usage/export` → Nhập: `POST /dashboard/api/usage/import` (tự dedup).
 
-**Q: How to update models?**
-A: Models auto-sync on startup. Restart the service to refresh.
+**Q: Cập nhật danh sách model thế nào?**
+A: Model tự đồng bộ khi khởi động. Restart service để làm mới.
 
----
-
-## 🤝 Contributing
-
-See `CONTRIBUTING.md`. Issues and PRs are welcome.
+**Q: Cờ `BYPASS_ENTITLEMENT=1` để làm gì?**
+A: Bỏ qua kiểm tra entitlement theo tier ở phía proxy — request sẽ được forward tới Windsurf bất kể model nào. Hữu ích để kiểm tra/debug khi tier hiển thị sai. Lỗi entitlement thật vẫn sẽ bị Windsurf upstream từ chối.
 
 ---
 
-## 🙏 Acknowledgements / 致谢
+## 🤝 Đóng góp
 
-This project is built upon [dwgx/WindsurfAPI](https://github.com/dwgx/WindsurfAPI). Special thanks to [@dwgx](https://github.com/dwgx) for the foundational work and open-source contribution.
-
-本项目基于 [dwgx/WindsurfAPI](https://github.com/dwgx/WindsurfAPI) 的初始版本开发，感谢原作者 [@dwgx](https://github.com/dwgx) 的开创性工作和开源贡献。
+Xem `CONTRIBUTING.md`. Hoan nghênh issue và PR.
 
 ---
 
-## 📄 License
+## 🙏 Lời cảm ơn
+
+Dự án được xây dựng dựa trên [dwgx/WindsurfAPI](https://github.com/dwgx/WindsurfAPI). Đặc biệt cảm ơn [@dwgx](https://github.com/dwgx) vì những đóng góp nền tảng và tinh thần mã nguồn mở.
+
+---
+
+## 📄 Giấy phép
 
 [MIT](LICENSE)
