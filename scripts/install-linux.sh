@@ -35,16 +35,26 @@ fi
 echo "✅ Node.js $(node --version)"
 
 # ── Phát hiện kiến trúc ────────────────────────
+# Windsurf official chỉ phát hành binary cho linux-x64. Trên ARM64 ta sẽ
+# tải binary x64 và chạy qua qemu-user-static (binfmt). Hiệu năng giảm
+# 3-5 lần nhưng vẫn dùng được cho dev/test.
 ARCH=$(uname -m)
+LS_BIN_NAME="language_server_linux_x64"
+NEED_QEMU=0
 case "$ARCH" in
-  x86_64)   LS_BIN_NAME="language_server_linux_x64" ;;
-  aarch64|arm64) LS_BIN_NAME="language_server_linux_arm" ;;
+  x86_64|amd64)
+    echo "✅ Kiến trúc: $ARCH (chạy native)"
+    ;;
+  aarch64|arm64)
+    echo "⚠️  Kiến trúc: $ARCH — Windsurf không có build ARM64 chính thức."
+    echo "   Sẽ chạy binary x86_64 thông qua qemu-user-static (chậm hơn native ~3-5×)."
+    NEED_QEMU=1
+    ;;
   *)
-    echo "⚠️  Kiến trúc lạ: $ARCH — mặc định dùng language_server_linux_x64"
-    LS_BIN_NAME="language_server_linux_x64"
+    echo "⚠️  Kiến trúc lạ: $ARCH — sẽ thử dùng binary x86_64 (có thể không tương thích)."
+    NEED_QEMU=1
     ;;
 esac
-echo "✅ Kiến trúc: $ARCH → $LS_BIN_NAME"
 
 # ── Kiểm tra công cụ cần thiết ─────────────────
 for tool in curl tar; do
@@ -53,6 +63,45 @@ for tool in curl tar; do
     exit 1
   fi
 done
+
+# ── Cài đặt qemu-user-static (chỉ trên ARM64) ──
+setup_qemu() {
+  if [ "$NEED_QEMU" -ne 1 ]; then return 0; fi
+  if [ -x /usr/bin/qemu-x86_64-static ] || [ -x /usr/bin/qemu-x86_64 ]; then
+    echo "✅ qemu-user-static đã có sẵn"
+  else
+    echo "⬇️  Đang cài qemu-user-static (cần sudo)..."
+    if command -v apt-get &>/dev/null; then
+      sudo apt-get update -qq && sudo apt-get install -y qemu-user-static binfmt-support
+    elif command -v dnf &>/dev/null; then
+      sudo dnf install -y qemu-user-static
+    elif command -v pacman &>/dev/null; then
+      sudo pacman -S --noconfirm qemu-user-static qemu-user-static-binfmt
+    else
+      echo "❌ Không nhận diện được package manager. Hãy tự cài qemu-user-static rồi chạy lại."
+      return 1
+    fi
+  fi
+
+  # Đăng ký binfmt nếu chưa active
+  if [ ! -e /proc/sys/fs/binfmt_misc/qemu-x86_64 ] && [ ! -e /proc/sys/fs/binfmt_misc/qemu-i386 ]; then
+    echo "⬇️  Đang đăng ký binfmt cho x86_64..."
+    if command -v update-binfmts &>/dev/null; then
+      sudo update-binfmts --enable qemu-x86_64 || true
+    fi
+    if [ ! -e /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+      sudo systemctl restart systemd-binfmt 2>/dev/null || true
+    fi
+  fi
+
+  if [ -e /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+    echo "✅ binfmt qemu-x86_64 đã active — có thể chạy binary x86_64 trên $ARCH"
+  else
+    echo "⚠️  Không kích hoạt được binfmt qemu-x86_64 tự động."
+    echo "   Bạn có thể chạy bằng tay: sudo /usr/bin/qemu-x86_64-static $LS_PATH"
+  fi
+}
+setup_qemu || true
 
 # ── Tự động tải Windsurf Language Server ───────
 LS_PATH="${LS_DIR}/${LS_BIN_NAME}"
