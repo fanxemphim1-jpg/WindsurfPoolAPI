@@ -56,6 +56,8 @@ case "$ARCH" in
     ;;
 esac
 
+LS_PATH="${LS_DIR}/${LS_BIN_NAME}"
+
 # ── Kiểm tra công cụ cần thiết ─────────────────
 for tool in curl tar; do
   if ! command -v "$tool" &>/dev/null; then
@@ -104,7 +106,6 @@ setup_qemu() {
 setup_qemu || true
 
 # ── Tự động tải Windsurf Language Server ───────
-LS_PATH="${LS_DIR}/${LS_BIN_NAME}"
 download_language_server() {
   echo ""
   echo "⬇️  Tự động tải Windsurf Linux từ mirror chính thức..."
