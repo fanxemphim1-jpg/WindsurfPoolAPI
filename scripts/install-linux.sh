@@ -102,6 +102,28 @@ setup_qemu() {
     echo "⚠️  Không kích hoạt được binfmt qemu-x86_64 tự động."
     echo "   Bạn có thể chạy bằng tay: sudo /usr/bin/qemu-x86_64-static $LS_PATH"
   fi
+
+  # qemu-user chế độ P cần dynamic linker x86_64 ở /lib64/ld-linux-x86-64.so.2
+  # và shared libs cơ bản. Trên host ARM64 thuần, các file này không có sẵn —
+  # phải bật multiarch amd64 và cài libc/libstdc++/libgcc cho amd64.
+  if ! [ -e /lib64/ld-linux-x86-64.so.2 ]; then
+    if command -v dpkg &>/dev/null && command -v apt-get &>/dev/null; then
+      echo "⬇️  Cài x86_64 glibc multiarch (cần thiết cho qemu-user mode P)..."
+      sudo dpkg --add-architecture amd64
+      sudo apt-get update -qq
+      sudo apt-get install -y libc6:amd64 libstdc++6:amd64 libgcc-s1:amd64 \
+        || echo "⚠️  Cài libc/libstdc++/libgcc cho amd64 thất bại — bạn có thể cần kiểm tra repo apt."
+    else
+      echo "⚠️  Distro không phải Debian/Ubuntu — bạn cần tự cài x86_64 glibc multiarch để qemu-user mode P chạy được."
+    fi
+  fi
+
+  if [ -e /lib64/ld-linux-x86-64.so.2 ]; then
+    echo "✅ Dynamic linker x86_64 đã có tại /lib64/ld-linux-x86-64.so.2"
+  else
+    echo "⚠️  Vẫn thiếu /lib64/ld-linux-x86-64.so.2 — Language Server sẽ không khởi động được."
+    echo "   Tham khảo: sudo dpkg --add-architecture amd64 && sudo apt-get install libc6:amd64"
+  fi
 }
 setup_qemu || true
 
@@ -214,6 +236,7 @@ RestartSec=5
 Environment=PORT=3003
 Environment=LOG_LEVEL=info
 Environment=LS_BINARY_PATH=$LS_PATH
+$([ "$NEED_QEMU" = "1" ] && printf "Environment=LS_READY_TIMEOUT_MS=120000\n")
 StandardOutput=journal
 StandardError=journal
 
