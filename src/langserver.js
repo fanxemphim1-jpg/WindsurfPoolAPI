@@ -164,8 +164,11 @@ export async function ensureLs(proxy = null) {
   };
   _pool.set(key, entry);
 
+  // Timeout configurable via LS_READY_TIMEOUT_MS — useful on slow hosts or
+  // when running the x86_64 binary under qemu-user emulation on ARM64.
+  const readyTimeoutMs = Number(process.env.LS_READY_TIMEOUT_MS) || 25000;
   try {
-    await waitPortReady(port, 25000);
+    await waitPortReady(port, readyTimeoutMs);
     entry.ready = true;
     log.info(`LS instance ${key} ready on port ${port}`);
   } catch (err) {
