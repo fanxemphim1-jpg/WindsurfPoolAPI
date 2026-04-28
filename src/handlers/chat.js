@@ -229,19 +229,21 @@ export async function handleChatCompletions(body, deps = {}) {
   // through every account trying to find one. This surfaces tier
   // entitlement and blocklist errors as a clean 403 rather than a 30s
   // queue timeout → pool_exhausted.
-  const anyEligible = getAccountList().some(a =>
-    a.status === 'active' && (a.availableModels || []).includes(modelKey)
-  );
-  if (!anyEligible) {
-    return {
-      status: 403,
-      body: {
-        error: {
-          message: `模型 ${displayModel} 在当前账号池中不可用（未订阅或已被封禁）`,
-          type: 'model_not_entitled',
+  if (process.env.BYPASS_ENTITLEMENT !== '1') {
+    const anyEligible = getAccountList().some(a =>
+      a.status === 'active' && (a.availableModels || []).includes(modelKey)
+    );
+    if (!anyEligible) {
+      return {
+        status: 403,
+        body: {
+          error: {
+            message: `模型 ${displayModel} 在当前账号池中不可用（未订阅或已被封禁）`,
+            type: 'model_not_entitled',
+          },
         },
-      },
-    };
+      };
+    }
   }
 
   const chatId = genId();

@@ -260,6 +260,11 @@ export function setAccountBlockedModels(id, blockedModels) {
  *   tier entitlement ∩ (models.js catalog) − account.blockedModels
  */
 export function isModelAllowedForAccount(account, modelKey) {
+  if (process.env.BYPASS_ENTITLEMENT === '1') {
+    const blocked = account.blockedModels || [];
+    if (blocked.includes(modelKey)) return false;
+    return true;
+  }
   const tierModels = getTierModels(account.tier || 'unknown');
   if (!tierModels.includes(modelKey)) return false;
   const blocked = account.blockedModels || [];
