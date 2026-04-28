@@ -110,6 +110,32 @@ setup_qemu() {
     if command -v dpkg &>/dev/null && command -v apt-get &>/dev/null; then
       echo "⬇️  Cài x86_64 glibc multiarch (cần thiết cho qemu-user mode P)..."
       sudo dpkg --add-architecture amd64
+
+      # Trên ARM Ubuntu, mặc định apt sources trỏ về ports.ubuntu.com — repo
+      # này CHỈ host arm64/ppc/s390 và sẽ trả 404 cho amd64. Phải thêm source
+      # archive.ubuntu.com riêng cho amd64 và giới hạn source ports cho arm64.
+      if grep -q "ports.ubuntu.com" /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null; then
+        echo "   Phát hiện ports.ubuntu.com — đang thêm source archive.ubuntu.com cho amd64..."
+        # deb822 format (Ubuntu 24.04+): thêm Architectures: arm64 nếu chưa có
+        for f in /etc/apt/sources.list.d/*.sources; do
+          [ -f "$f" ] || continue
+          if ! grep -q "^Architectures:" "$f"; then
+            sudo sed -i '/^Suites:/a Architectures: arm64' "$f" || true
+          fi
+        done
+        # Legacy format
+        if [ -f /etc/apt/sources.list ]; then
+          sudo sed -i -E 's|^deb (http)|deb [arch=arm64] \1|' /etc/apt/sources.list || true
+        fi
+        # Suy ra codename từ /etc/os-release
+        CODENAME=$(. /etc/os-release && echo "${VERSION_CODENAME:-noble}")
+        sudo tee /etc/apt/sources.list.d/amd64.list > /dev/null <<EOF
+deb [arch=amd64] http://archive.ubuntu.com/ubuntu ${CODENAME} main restricted universe multiverse
+deb [arch=amd64] http://archive.ubuntu.com/ubuntu ${CODENAME}-updates main restricted universe multiverse
+deb [arch=amd64] http://security.ubuntu.com/ubuntu ${CODENAME}-security main restricted universe multiverse
+EOF
+      fi
+
       sudo apt-get update -qq
       sudo apt-get install -y libc6:amd64 libstdc++6:amd64 libgcc-s1:amd64 \
         || echo "⚠️  Cài libc/libstdc++/libgcc cho amd64 thất bại — bạn có thể cần kiểm tra repo apt."
