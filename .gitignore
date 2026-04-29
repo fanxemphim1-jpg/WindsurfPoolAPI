@@ -4,6 +4,7 @@ accounts.json
 proxy.json
 runtime-config.json
 stats.json
+model-access.json
 data/
 logs/
 *.log
